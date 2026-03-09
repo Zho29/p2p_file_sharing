@@ -1,1 +1,2 @@
-# p2p_file_sharing
+# P2P File Sharing Project
+
