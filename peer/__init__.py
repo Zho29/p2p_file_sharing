@@ -16,14 +16,14 @@ Step 1 — Initialise with external dependencies:
     from peer import init_p2p
     init_p2p(
         chunk_storage        = chunk_mgr,        # from Chunking module
-        tracker_get_peers_fn = tracker.get_peers  # optional callable
+        handle_get_peers = tracker.get_peers  # optional callable
     )
 
 Step 2 — Start the local server (call once at startup):
 
     server = p2p_serve(port=8888)
 
-Step 3 — Discover who is online (optional; requires tracker_get_peers_fn):
+Step 3 — Discover who is online (optional; requires handle_get_peers):
 
     peers = p2p_discover()
 
@@ -61,7 +61,7 @@ chunk_storage must implement:
     get_chunk(file_id: str, chunk_index: int)  -> bytes | None
     save_chunk(file_id: str, chunk_index: int, data: bytes) -> None
 
-tracker_get_peers_fn (optional) must be:
+handle_get_peers (optional) must be:
     callable() -> list[dict]   e.g. [{"ip": "1.2.3.4", "port": 8888}, ...]
 
 =============================================================================
@@ -83,7 +83,7 @@ log = get_logger(__name__)
 _state: dict = {
     # Injected by init_p2p()
     "chunk_storage":        None,
-    "tracker_get_peers_fn": None,   # callable() -> list[{"ip":..,"port":..}]
+    "handle_get_peers": None,   # callable() -> list[{"ip":..,"port":..}]
 
     # Set by p2p_serve()
     "server":               None,
@@ -101,7 +101,7 @@ _state: dict = {
 # Initialisation
 # ---------------------------------------------------------------------------
 
-def init_p2p(chunk_storage, tracker_get_peers_fn=None) -> None:
+def init_p2p(chunk_storage, handle_get_peers=None) -> None:
     """
     Inject external dependencies into the P2P module.
 
@@ -116,7 +116,7 @@ def init_p2p(chunk_storage, tracker_get_peers_fn=None) -> None:
     chunk_storage : object
         The Chunking module's storage object.
         Must implement get_chunk() and save_chunk().
-    tracker_get_peers_fn : callable, optional
+    handle_get_peers : callable, optional
         A zero-argument callable that returns a list of active-peer dicts:
             [{"ip": "192.168.1.5", "port": 8888}, ...]
         If omitted, p2p_discover() returns an empty list.
@@ -127,12 +127,12 @@ def init_p2p(chunk_storage, tracker_get_peers_fn=None) -> None:
 
     Example
     -------
-    >>> init_p2p(chunk_storage=chunk_mgr, tracker_get_peers_fn=tracker.get_peers)
+    >>> init_p2p(chunk_storage=chunk_mgr, handle_get_peers=tracker.get_peers)
     """
     _state["chunk_storage"]        = chunk_storage
-    _state["tracker_get_peers_fn"] = tracker_get_peers_fn
+    _state["handle_get_peers"] = handle_get_peers
     log.info("P2P module initialised (tracker=%s)",
-             "yes" if tracker_get_peers_fn else "no")
+             "yes" if handle_get_peers else "no")
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +186,7 @@ def p2p_discover() -> list:
 
     Purpose
     -------
-    Calls the tracker_get_peers_fn injected at init time, stores the result
+    Calls the handle_get_peers injected at init time, stores the result
     in an internal cache, and returns it.  The Integration layer uses this
     list to decide which peers to contact for push or pull operations.
 
@@ -202,7 +202,7 @@ def p2p_discover() -> list:
     >>> for p in peers:
     ...     print(p["ip"], p["port"])
     """
-    fn = _state["tracker_get_peers_fn"]
+    fn = _state["handle_get_peers"]
     if fn is None:
         log.warning("p2p_discover: no tracker function configured — returning []")
         return []

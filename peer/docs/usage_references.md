@@ -92,7 +92,7 @@ class YourChunkStorage:
 
 ---
 
-### 3.2 From the Tracker Module — tracker_get_peers_fn callable
+### 3.2 From the Tracker Module — handle_get_peers callable
 
 This is **optional** but required for `p2p_discover()` to work.
 
@@ -100,7 +100,7 @@ The Integration layer wraps its Tracker calls into a simple callable and
 passes it to `init_p2p()`:
 
 ```python
-def my_tracker_get_peers() -> list[dict]:
+def handle_get_peers() -> list[dict]:
     """
     Call the Tracker's GET /peers/active endpoint and return the result.
 
@@ -159,7 +159,7 @@ from peer import (
 
 ---
 
-### `init_p2p(chunk_storage, tracker_get_peers_fn=None)`
+### `init_p2p(chunk_storage, handle_get_peers=None)`
 
 **Must be called once before anything else.**
 
@@ -169,7 +169,7 @@ or Tracker modules directly.
 ```python
 init_p2p(
     chunk_storage        = chunk_mgr,            # required
-    tracker_get_peers_fn = tracker.get_peers,    # optional
+    handle_get_peers = tracker.handle_get_peers,    # optional
 )
 ```
 
@@ -195,7 +195,7 @@ incoming **push uploads** (NOTIFY_STORAGE_REQ) automatically.
 
 ### `p2p_discover() -> list[dict]`
 
-Calls `tracker_get_peers_fn()`, caches the result, and returns it.
+Calls `handle_get_peers()`, caches the result, and returns it.
 Returns `[]` if no tracker function was provided.
 
 ```python
