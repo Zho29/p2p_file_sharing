@@ -20,7 +20,7 @@ The handler dispatches on the first frame received:
       Response: READY + binary bytes  OR  CHUNK_NOT_FOUND
 
   NOTIFY_STORAGE_REQ  (type field)
-      Push mode — the remote peer (Alice) wants to upload chunks to us.
+      Push mode — the remote peer (Alice for example) wants to upload chunks to us.
       Response: READY_TO_RECEIVE, then receive each chunk and save it.
 
 RESPONSIBILITY BOUNDARY
@@ -30,12 +30,6 @@ This module:
   - Pull path: validates request, looks up chunk, streams it
   - Push path: ACKs the notification, receives chunks, saves via chunk_storage
 
-This module does NOT:
-  - Accept new connections  (that is peer_server.py's job)
-  - Store chunks            (that is the Chunking module's job)
-  - Contact the Tracker     (that is the Integration layer's job)
-
-CHUNK STORAGE INTERFACE
 -----------------------
 The handler depends on a `chunk_storage` object provided by the caller.
 That object must implement:
@@ -46,8 +40,7 @@ That object must implement:
 THREADING MODEL
 ---------------
 Each ConnectionHandler instance is a daemon thread.  Daemon threads are
-automatically killed when the main process exits, so the server never hangs
-waiting for stragglers after shutdown.
+automatically killed when the main process exits.
 
 =============================================================================
 """
@@ -94,18 +87,12 @@ class ConnectionHandler(threading.Thread):
     Parameters
     ----------
     conn : socket.socket
-        The accepted client socket (returned by server_socket.accept()).
+        The accepted client socket.
     addr : tuple
         (ip, port) of the remote peer — used only for log messages.
     chunk_storage : object
-        Any object that implements get_chunk() and save_chunk().
-        Provided by the Integration layer or a mock during testing.
+        Any object that implements get_chunk() and save_chunk()
 
-    Example
-    -------
-    >>> conn, addr = server_sock.accept()
-    >>> handler = ConnectionHandler(conn, addr, chunk_storage)
-    >>> handler.start()   # returns immediately; handler runs in background
     """
 
     def __init__(self, conn: socket.socket, addr: tuple, chunk_storage):
@@ -221,10 +208,10 @@ class ConnectionHandler(threading.Thread):
                  file_id, chunk_index, len(chunk_data), peer)
         send_frame(self._conn, make_response_ready(len(chunk_data), chunk_hash))
         self._conn.sendall(chunk_data)
-        log.info("Pull transfer complete to %s", peer)
+        log.info("Chunk transfer complete to %s", peer)
 
     # ------------------------------------------------------------------
-    # Push path  (remote peer — Alice — is uploading chunks to us)
+    # Push path  (remote peer is uploading chunks to other peers)
     # ------------------------------------------------------------------
 
     def _handle_push(self, metadata: dict):
@@ -266,7 +253,7 @@ class ConnectionHandler(threading.Thread):
         # Step 1 — ACK the notification
         send_frame(self._conn, make_ready_to_receive())
 
-        # Step 2 — receive each chunk in the order Alice sends them
+        # Step 2 — receive each chunk in the order seeder sends them
         for chunk_index in chunks_expected:
             chunk_meta, _ = recv_frame(self._conn)
             announced_size = chunk_meta["size"]

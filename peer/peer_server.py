@@ -20,11 +20,6 @@ This module:
   - Accepts incoming connections
   - Delegates all per-connection logic to ConnectionHandler
 
-This module does NOT:
-  - Parse or respond to any protocol messages  (ConnectionHandler's job)
-  - Store or retrieve chunks                   (Chunking module's job)
-  - Contact the Tracker                        (Integration layer's job)
-
 INTEGRATION INTERFACE
 ---------------------
 The Integration layer (main.py) starts the server with one call:
@@ -80,8 +75,7 @@ class PeerServer:
     Parameters
     ----------
     port : int
-        TCP port to listen on.  Use 0 to let the OS pick a free port
-        (useful in tests).
+        TCP port to listen on.  Use 0 to let the OS pick a free port.
     chunk_storage : object
         Any object implementing get_chunk(file_id, chunk_index).
         Passed through to each ConnectionHandler unchanged.
@@ -89,16 +83,8 @@ class PeerServer:
     Attributes
     ----------
     port : int
-        The actual port the server is bound to.  If 0 was passed to __init__,
-        this attribute reflects the OS-assigned port after start() is called.
+        The actual port the server is bound to.  
 
-    Example
-    -------
-    >>> server = PeerServer(port=8888, chunk_storage=storage)
-    >>> server.start()
-    >>> print("Listening on", server.port)
-    >>> # ... later ...
-    >>> server.stop()
     """
 
     def __init__(self, port: int, chunk_storage):
@@ -131,12 +117,6 @@ class PeerServer:
         ------
         OSError
             If the port is already in use or the bind fails for any reason.
-
-        Example
-        -------
-        >>> server = PeerServer(8888, storage)
-        >>> server.start()   # returns immediately
-        >>> print("Server is up on port", server.port)
         """
         self._server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -172,11 +152,6 @@ class PeerServer:
         which the loop recognises as a shutdown signal and exits cleanly.
 
         This method blocks briefly (up to 2 s) to wait for the thread to exit.
-
-        Example
-        -------
-        >>> server.stop()
-        >>> print("Server has shut down")
         """
         log.info("PeerServer stopping on port %d", self._port)
         self._stop_event.set()
@@ -192,9 +167,6 @@ class PeerServer:
         """
         Return True if the accept-loop thread is alive.
 
-        Example
-        -------
-        >>> assert server.is_running()
         """
         return self._thread is not None and self._thread.is_alive()
 

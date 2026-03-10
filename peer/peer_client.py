@@ -5,7 +5,7 @@ peer/peer_client.py  —  Outbound Peer Client
 
 PURPOSE
 -------
-Implements the outbound (pull) side of a peer connection.
+Implements the pull side of a peer connection.
 
 Given a remote peer's address and a chunk identifier, this module:
   1. Opens a TCP connection to the remote peer
@@ -21,12 +21,6 @@ This module:
   - Makes outbound connections
   - Sends chunk requests and receives responses
   - Verifies data integrity via SHA-256
-
-This module does NOT:
-  - Store received chunks          (Chunking module's job via save_chunk())
-  - Decide which peer to contact   (Integration layer's job)
-  - Retry on a different peer      (Integration layer's job)
-  - Contact the Tracker            (Integration layer's job)
 
 INTEGRATION INTERFACE
 ---------------------
@@ -56,8 +50,7 @@ decide what to do next (try a different peer, log the error, etc.):
 CONCURRENCY LIMIT
 -----------------
 The spec requires a maximum of 4 simultaneous outbound pull requests to
-avoid saturating the local network.  This is enforced by a module-level
-threading.Semaphore.  Any call to request_chunk() that would exceed the
+avoid saturating the local network.  Any call to request_chunk() that would exceed the
 limit blocks until an in-flight download completes.
 
 =============================================================================
@@ -84,7 +77,7 @@ log = get_logger(__name__)
 # Maximum number of simultaneous outbound chunk downloads (spec requirement).
 MAX_CONCURRENT_DOWNLOADS: int = 4
 
-# Module-level semaphore — shared across all threads in this process.
+# Module-level — shared across all threads in this process.
 _download_semaphore = threading.Semaphore(MAX_CONCURRENT_DOWNLOADS)
 
 
@@ -100,13 +93,6 @@ class ChunkNotFoundError(Exception):
     ----------
     file_id : str
     chunk_index : int
-
-    Example
-    -------
-    >>> try:
-    ...     request_chunk("1.2.3.4", 8888, "f.zip", 5)
-    ... except ChunkNotFoundError as e:
-    ...     print(f"Peer does not have chunk {e.chunk_index} of {e.file_id}")
     """
 
     def __init__(self, file_id: str, chunk_index: int):
@@ -129,12 +115,7 @@ class IntegrityError(Exception):
     expected : str   hex digest announced by the server
     actual   : str   hex digest of the bytes that arrived
 
-    Example
-    -------
-    >>> try:
-    ...     request_chunk("1.2.3.4", 8888, "f.zip", 5)
-    ... except IntegrityError as e:
-    ...     print(f"Hash mismatch — expected {e.expected}, got {e.actual}")
+    
     """
 
     def __init__(self, expected: str, actual: str):
@@ -167,7 +148,7 @@ def request_chunk(
     Parameters
     ----------
     peer_ip : str
-        IP address of the remote peer (e.g. "192.168.1.5").
+        IP address of the remote peer.
     peer_port : int
         TCP port the remote peer's server is listening on.
     file_id : str
@@ -300,7 +281,7 @@ def _do_request(
 
 
 # ---------------------------------------------------------------------------
-# Push  (Alice uploads a chunk to a target peer)
+# Push  (Seeder uploads a chunk to a target peer)
 # ---------------------------------------------------------------------------
 
 def push_chunk(
@@ -316,7 +297,7 @@ def push_chunk(
 
     Purpose
     -------
-    This is Alice's side of the push distribution flow.  She opens a
+    This is Seeder's (here used Alice as an example) side of the push distribution flow.  She opens a
     connection, sends a NOTIFY_STORAGE_REQ, waits for READY_TO_RECEIVE,
     then streams the chunk.  The remote peer's ConnectionHandler saves it.
 

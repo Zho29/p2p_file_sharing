@@ -13,17 +13,9 @@ Provides two things that every other module in the peer package depends on:
      complexity so the rest of the code can think in whole frames and whole
      chunks, not arbitrary byte fragments.
 
-  2. A consistent logger factory
+  2. A consistent logger
      All peer modules get a named logger through get_logger(), which ensures
      uniform formatting and a single place to change log level or handlers.
-
-PUBLIC API
-----------
-  recv_exact(sock, n)          -> bytes
-  send_frame(sock, frame)      -> None
-  recv_frame(sock)             -> tuple[dict, bytes]
-  recv_chunk_payload(sock, n)  -> bytes
-  get_logger(name)             -> logging.Logger
 
 =============================================================================
 """
@@ -62,16 +54,11 @@ def get_logger(name: str) -> logging.Logger:
     ----------
     name : str
         Typically __name__ of the calling module
-        (e.g. "peer.peer_server", "peer.peer_client").
 
     Returns
     -------
     logging.Logger
 
-    Example
-    -------
-    >>> log = get_logger(__name__)
-    >>> log.info("Server started on port %d", port)
     """
     global _logging_configured
     if not _logging_configured:
@@ -117,11 +104,6 @@ def recv_exact(sock: socket.socket, n: int) -> bytes:
         (the remote peer disconnected mid-transfer).
     ValueError
         If `n` is not a positive integer.
-
-    Example
-    -------
-    >>> raw_header = recv_exact(sock, HEADER_SIZE)   # always 4 bytes
-    >>> json_block = recv_exact(sock, json_length)
     """
     if n <= 0:
         raise ValueError(f"recv_exact requires n > 0, got {n}")
@@ -150,11 +132,6 @@ def send_frame(sock: socket.socket, frame: bytes) -> None:
     """
     Send a complete encoded frame over the socket.
 
-    Purpose
-    -------
-    Thin wrapper around sock.sendall() that adds a log line and a clear
-    exception message so callers never have to handle sendall() directly.
-
     Parameters
     ----------
     sock : socket.socket
@@ -171,9 +148,6 @@ def send_frame(sock: socket.socket, frame: bytes) -> None:
     ConnectionError
         If the socket write fails (remote end closed, network error, etc.).
 
-    Example
-    -------
-    >>> send_frame(sock, make_request_chunk("movie.mp4", 3))
     """
     log = get_logger(__name__)
     
@@ -198,10 +172,7 @@ def recv_frame(sock: socket.socket) -> Tuple[dict, bytes]:
           which for command/response frames is 0)
 
     NOTE: This function reads ONLY the header and metadata.  Binary chunk
-    payloads are received separately with recv_chunk_payload() because the
-    payload size is announced inside the metadata (the "size" field), and
-    streaming large payloads through this function would require holding the
-    entire chunk in memory at once.
+    payloads are received separately with recv_chunk_payload() 
 
     Parameters
     ----------
@@ -220,12 +191,6 @@ def recv_frame(sock: socket.socket) -> Tuple[dict, bytes]:
         If the connection drops during reading.
     ValueError
         If the header or JSON block is malformed.
-
-    Example
-    -------
-    >>> meta, payload = recv_frame(sock)
-    >>> if meta.get("status") == STATUS_READY:
-    ...     chunk = recv_chunk_payload(sock, meta["size"])
     """
     log = get_logger(__name__)
 
@@ -268,18 +233,13 @@ def recv_chunk_payload(sock: socket.socket, size: int) -> bytes:
     Raises
     ------
     ValueError
-        If size exceeds MAX_CHUNK_SIZE (sanity guard).
+        If size exceeds MAX_CHUNK_SIZE.
     ConnectionError
         If the connection drops before all bytes arrive.
-
-    Example
-    -------
-    >>> meta, _ = recv_frame(sock)          # get READY response
-    >>> chunk = recv_chunk_payload(sock, meta["size"])
     """
     if size > MAX_CHUNK_SIZE:
         raise ValueError(
-            f"Announced payload size {size} exceeds MAX_CHUNK_SIZE {MAX_CHUNK_SIZE}"
+            f"payload size {size} exceeds MAX_CHUNK_SIZE {MAX_CHUNK_SIZE}"
         )
     log = get_logger(__name__)
     log.debug("Receiving chunk payload: %d bytes", size)
