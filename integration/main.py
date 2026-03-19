@@ -63,8 +63,7 @@ for _p in (_THIS_DIR, _ROOT, _TRACKER):
         sys.path.insert(0, _p)
 
 from chunking import Chunking
-from chunk_storage_adapter import ChunkStorageAdapter
-from tracker_client import TrackerClient
+from integration import TrackerClient, ChunkStorageAdapter
 
 from peer import (
     init_p2p,
