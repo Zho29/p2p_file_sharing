@@ -1,6 +1,6 @@
 # protocol.py
 import json
-from datetime import time
+import time
 
 class MessageType:
     REGISTER_PEER = "REGISTER_PEER"

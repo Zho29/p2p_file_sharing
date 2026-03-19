@@ -1,0 +1,19 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Chunk storage (runtime data)
+chunks/
+downloads/
+
+# Environment
+.env
+venv/
+.venv/

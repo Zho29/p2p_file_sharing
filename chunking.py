@@ -39,7 +39,10 @@ class Chunking:
 
         chunk_dir = f"{self.storage_dir}/{file_id}"
 
-        chunks = sorted(os.listdir(chunk_dir))
+        chunks = sorted(
+            os.listdir(chunk_dir),
+            key=lambda name: int(name.split("_")[1]) if "_" in name else 0
+        )
 
         with open(output_path, "wb") as output:
 
