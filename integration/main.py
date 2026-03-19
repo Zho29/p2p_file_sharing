@@ -1,45 +1,4 @@
-"""
-=============================================================================
-main.py  —  P2P File Sharing Integration Layer
-=============================================================================
 
-PURPOSE
--------
-This is the top-level entry point for the P2P file sharing application.
-It wires the three independent modules together:
-
-    Chunking module  (chunking.py)
-    Tracker module   (Tracker/sockettracker.py)  ← via tracker_client.py
-    P2P module       (peer/)                      ← via peer/__init__.py
-
-USAGE
------
-Seed a file (upload / distribute):
-    python main.py seed <file_path> [options]
-
-Download a file:
-    python main.py download <file_id> [options]
-
-Examples:
-    python main.py seed ./movie.mp4 --port 8888
-    python main.py seed ./movie.mp4 --port 8888 --tracker-host 192.168.1.1
-
-    python main.py download movie.mp4 --port 8889 --out ./downloads/
-    python main.py download movie.mp4 --port 8889 --tracker-host 192.168.1.1
-
-OPTIONS (both subcommands)
-    --port            TCP port for this peer's server       [default: 8888]
-    --tracker-host    Tracker IP / hostname                 [default: 127.0.0.1]
-    --tracker-port    Tracker port                          [default: 5000]
-    --chunk-size      Bytes per chunk                       [default: 1048576 = 1 MiB]
-    --storage-dir     Directory for chunk files             [default: ./chunks]
-    --peer-id         Identifier sent to the Tracker        [default: hostname]
-
-DOWNLOAD-ONLY OPTIONS
-    --out             Directory for the reconstructed file  [default: ./downloads]
-
-=============================================================================
-"""
 
 import argparse
 import concurrent.futures
@@ -50,10 +9,7 @@ import sys
 import threading
 import time
 
-# ---------------------------------------------------------------------------
-# Path setup — allow running as:  python integration/main.py  (from project root)
-#              or directly as:     python main.py  (from inside integration/)
-# ---------------------------------------------------------------------------
+
 _THIS_DIR  = os.path.dirname(os.path.abspath(__file__))   # .../integration/
 _ROOT      = os.path.dirname(_THIS_DIR)                   # .../p2p_file_sharing/
 _TRACKER   = os.path.join(_ROOT, "Tracker")               # .../Tracker/
@@ -75,9 +31,7 @@ from peer import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Logging setup
-# ---------------------------------------------------------------------------
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -87,17 +41,9 @@ logging.basicConfig(
 log = logging.getLogger("main")
 
 
-# ---------------------------------------------------------------------------
-# Keep-alive background thread
-# ---------------------------------------------------------------------------
 
 def _start_keep_alive(tracker: TrackerClient, peer_id: str, interval: float = 15.0):
-    """
-    Send periodic keep-alive pings to the Tracker in a daemon thread.
-
-    The Tracker removes peers that haven't checked in within 30 seconds.
-    This thread pings every `interval` seconds to stay registered.
-    """
+    
     def _loop():
         while True:
             time.sleep(interval)
@@ -108,25 +54,9 @@ def _start_keep_alive(tracker: TrackerClient, peer_id: str, interval: float = 15
     return t
 
 
-# ---------------------------------------------------------------------------
-# SEEDER flow
-# ---------------------------------------------------------------------------
 
 def run_seed(args):
-    """
-    Split a local file into chunks, register with the Tracker, and serve
-    those chunks to the network indefinitely.
-
-    Steps
-    -----
-    1.  Split the file into chunk files on disk.
-    2.  Initialise the P2P module with the chunk storage adapter.
-    3.  Start the local peer server so other peers can pull chunks.
-    4.  Register this peer with the Tracker.
-    5.  Announce the file and all its chunks to the Tracker.
-    6.  Start the keep-alive thread.
-    7.  Block forever (Ctrl-C to stop).
-    """
+    
     file_path = os.path.abspath(args.file_path)
     if not os.path.isfile(file_path):
         log.error("File not found: %s", file_path)
@@ -191,25 +121,10 @@ def run_seed(args):
         log.info("Done.")
 
 
-# ---------------------------------------------------------------------------
-# DOWNLOADER flow
-# ---------------------------------------------------------------------------
+
 
 def run_download(args):
-    """
-    Discover peers from the Tracker, download all chunks in parallel,
-    and reconstruct the file.
-
-    Steps
-    -----
-    1.  Initialise the P2P module with the chunk storage adapter.
-    2.  Start the local peer server (so peers can push to us too).
-    3.  Register with the Tracker.
-    4.  Query the Tracker for the chunk → peer map.
-    5.  Register the map with the P2P module via set_download_context().
-    6.  Download all chunks in parallel (ThreadPoolExecutor).
-    7.  Reconstruct the file via chunking.reconstruct().
-    """
+    
     file_id = args.file_id
     out_dir = os.path.abspath(args.out)
     os.makedirs(out_dir, exist_ok=True)
@@ -316,9 +231,7 @@ def run_download(args):
     log.info("=== Download complete ===")
 
 
-# ---------------------------------------------------------------------------
-# CLI argument parsing
-# ---------------------------------------------------------------------------
+
 
 def _build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -358,9 +271,6 @@ def _build_argparser() -> argparse.ArgumentParser:
     return parser
 
 
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 
 def main():
     parser = _build_argparser()
