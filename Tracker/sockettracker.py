@@ -40,12 +40,24 @@ class Tracker:
         """Handle incoming client requests"""
         try:
             while True:
-                # Receive message (assuming max 4096 bytes)
-                data = client_socket.recv(4096).decode('utf-8')
-                if not data:
+                # Receive message — keep reading until we have a complete JSON object
+                raw = b""
+                message = None
+                while True:
+                    chunk = client_socket.recv(4096)
+                    if not chunk:
+                        break
+                    raw += chunk
+                    # Try to parse as soon as we have valid JSON
+                    try:
+                        message = json.loads(raw.decode('utf-8'))
+                        break
+                    except json.JSONDecodeError:
+                        continue
+                
+                if not raw:
                     break
                     
-                message = parse_message(data)
                 if not message:
                     self.send_error(client_socket, "Invalid message format")
                     continue
@@ -69,8 +81,8 @@ class Tracker:
             print(f"Error handling client {address}: {e}")
         finally:
             client_socket.close()
-            # Remove peer from active list
-            self.remove_peer(address)
+            # Don't remove peer on disconnect — let keep-alive timeout handle it
+            # since the client uses stateless connections (one per message)
 
     def handle_register_peer(self, client_socket, address, data):
         """Register a new peer in the network"""
@@ -207,3 +219,8 @@ class Tracker:
             client_socket.send(response.encode('utf-8'))
         except:
             pass
+
+
+if __name__ == "__main__":
+    tracker = Tracker(host='0.0.0.0', port=5000)
+    tracker.start()
